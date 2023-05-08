@@ -16,6 +16,9 @@ services:
         source: ./configs
         target: /xrdconfigs
       - type: bind
+        source: ./scripts
+        target: /scripts
+      - type: bind
         source: ./store
         target: /storage
     ports:
@@ -41,13 +44,15 @@ services:
         source: ./configs
         target: /xrdconfigs
       - type: bind
+        source: ./scripts
+        target: /scripts
+      - type: bind
         source: ./cache
         target: /cache
     networks:
       network1:
         ipv4_address: 10.5.0.6
     tty: true
-
 
   client:
     container_name: client_minimal-1

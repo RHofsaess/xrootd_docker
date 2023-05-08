@@ -1,26 +1,31 @@
-### Ubuntu 22.04 docker setup for XCache testing
+# Ubuntu 22.04 docker setup for XCache testing
 It is a minimal setup without a redirector, no logging and no monitoring.
+For the client, however, the redirector plugin is used.
 
-**NOTE: The X509 proxies need to be renewed, if you want to use external data sources with auth!**
+The certificates are mounted from cvmfs. If it is not available, this has to be adapted in the `docker-compose.yml`!
+
+NOTE: If a (voms) proxy is necessary, the part has to be adapted and commented in in `setup.sh`.
+The X509 proxies need to be renewed regularly, if you want to use external data sources with auth!
 
 
 ----- general -----
-1) setup folders: 
+1) setup folders:
   `$ mkdir cache`
   `$ mdkir store`
   `$ mdkir certs`
 2) copy X509 proxy, if necessary:
   `$ cp <proxy> ./certs>`
+  Adapt `X509_USER_PROXY=XXX` in the `docker-compose.yml` to your needs!
 
 
 ----- plain docker -----
 building:
-  `$ docker build --rm -t client_minimal .`
+  `$ docker build --rm -t minimal-image .`
 
 run (no compose):
-  `$ docker run -dit client_minimal bash`
-  `$ docker run -dit --mount type=bind,source="/cvmfs/grid.cern.ch/etc/grid-security/certificates"/,target=/etc/grid-security/certificates client_minimal bash`
-  Eventually, more folders need to be mounted (certs etc)
+  `$ docker run -dit minimal-image bash`
+  `$ docker run -dit --mount type=bind,source="/cvmfs/grid.cern.ch/etc/grid-security/certificates"/,target=/etc/grid-security/certificates minimal-image bash`
+  **Eventually, more folders need to be mounted (certs etc)**
 
 
 ----- docker compose -----
@@ -31,17 +36,16 @@ setup:
 ----- setup servers -----
 1) connect to server container
   `$ docker exec -it server-minimal-1 bash`
-  and run the server:
-  `$ runuser -u xrootd -- xrootd -c /xrdconfigs/xrootd-standalone.cfg`
-**NOTE: The export directory (/store) can be owned by root**
+  and run the server with `./scripts/server.sh`.
+**NOTE: The export directory (/store) can be owned by root, it doesn't matter.**
 
 2) start proxy:
-  `$ docker exec -it client-minimal-1 bash`
-  `$ runuser -u xrootd -- xrootd -c xrdconfigs/xrootd-caching-server.cfg`
+  `$ docker exec -it proxy-minimal-1 bash`
+  and run the proxy with `./scripts/proxy.sh`
 **NOTE: The /cache directory must be owned by xrootd for writing!**
   `$ chown xrootd:xrootd /cache`
 
 3) connect as a client and use XRootD!
   `$ docker exec -it client-minimal-1 bash`
 **NOTE: For versions < 5.6 and > 5.3.1, it is necessary to use "XRD_CPUSEPGWRTRD=0" to avoid a bug in xrootd!**
-  e.g.: `$ XRD_CPUSEPGWRTRD=0 xrdcp -d 2 -f root://10.5.0.6:1094//root://10.5.0.5:1094//storage/<file> .`
+  e.g.: `$ XRD_CPUSEPGWRTRD=0 xrdcp -d 2 -f root://10.5.0.5:1094//storage/<file> .`
