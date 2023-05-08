@@ -1,0 +1,49 @@
+# Ubuntu 22.04 docker setup for XCache testing
+Setup with logging (no redirector, no monitoring).
+For the client, however, the redirector plugin is used.
+
+The setup for the servers is automatized.
+The logs are written to `/logs`.
+**NOTE: Eventually, on restarting the stack, the permissions of the log files get lost. Then, the files have to be removed.**
+Fof debugging: `docker compose logs`
+
+
+The certificates are mounted from cvmfs. If it is not available, this has to be adapted in the `docker-compose.yml`!
+
+NOTE: If a (voms) proxy is necessary, the part has to be adapted and commented in in `setup.sh`.
+The X509 proxies need to be renewed regularly, if you want to use external data sources with auth!
+
+
+----- general -----
+1) setup folders:
+  `$ mkdir cache`
+  `$ mdkir store`
+  `$ mdkir certs`
+  `$ mkdir logs`
+2) copy X509 proxy, if necessary:
+  `$ cp <proxy> ./certs>`
+  Adapt `X509_USER_PROXY=XXX` in the `docker-compose.yml` to your needs!
+
+
+----- plain docker -----
+building:
+  `$ docker build --rm -t minimal-image .`
+
+run (no compose):
+  `$ docker run -dit minimal-image bash`
+  `$ docker run -dit --mount type=bind,source="/cvmfs/grid.cern.ch/etc/grid-security/certificates"/,target=/etc/grid-security/certificates minimal-image bash`
+  **Eventually, more folders need to be mounted (certs etc)**
+
+
+----- docker compose -----
+setup:
+  `$ docker compose up -d`
+
+
+----- setup servers -----
+1) The server and proxy are setup with docker compose automatically
+
+2) connect as a client and use XRootD!
+  `$ docker exec -it client-minimal-1 bash`
+**NOTE: For versions < 5.6 and > 5.3.1, it is necessary to use "XRD_CPUSEPGWRTRD=0" to avoid a bug in xrootd!**
+  e.g.: `$ XRD_CPUSEPGWRTRD=0 xrdcp -d 2 -f root://10.5.0.5:1094//storage/<file> .`
