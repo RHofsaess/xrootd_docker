@@ -1,0 +1,105 @@
+version: "3.9"
+services:
+  server:
+    container_name: server_minimal-1
+    image: ubuntu_testing-server
+    environment:
+      - X509_USER_PROXY=/tmp/cert/x509up_u14057
+    volumes:
+      - type: bind
+        source: /cvmfs/grid.cern.ch/etc/grid-security/certificates
+        target: /etc/grid-security/certificates
+      - type: bind
+        source: ./certs
+        target: /tmp/cert
+      - type: bind
+        source: ./configs
+        target: /xrdconfigs
+      - type: bind
+        source: ./scripts
+        target: /scripts
+      - type: bind
+        source: ./store
+        target: /storage
+      - type: bind
+        source: ./logs
+        target: /logs
+    entrypoint: /scripts/server.sh
+    ports:
+      - "1094:1094"
+    networks:
+      network1:
+        ipv4_address: 10.5.0.5
+    tty: true
+
+  proxy:
+    container_name: proxy_compile-1
+    build: .
+    environment:
+      - X509_USER_PROXY=/tmp/cert/x509up_u14057
+    volumes:
+      - type: bind
+        source: /cvmfs/grid.cern.ch/etc/grid-security/certificates
+        target: /etc/grid-security/certificates
+      - type: bind
+        source: ./certs
+        target: /tmp/cert
+      - type: bind
+        source: ./configs
+        target: /xrdconfigs
+      - type: bind
+        source: ./scripts
+        target: /scripts
+      - type: bind
+        source: ./cache
+        target: /cache
+      - type: bind
+        source: ../xrootd
+        target: /xrootd
+      - type: bind
+        source: ./build
+        target: /build
+      - type: bind
+        source: ./logs
+        target: /logs
+    #entrypoint: /scripts/build_and_run.sh
+    #entrypoint: /scripts/proxy.sh
+    entrypoint: /scripts/proxy_compiled.sh
+    networks:
+      network1:
+        ipv4_address: 10.5.0.6
+    tty: true
+
+# client uses the default image
+  client:
+    container_name: client_minimal-1
+    image: ubuntu_testing-client
+    environment:
+      - X509_USER_PROXY=/tmp/cert/x509up_u14057
+    volumes:
+      - type: bind
+        source: /cvmfs/grid.cern.ch/etc/grid-security/certificates
+        target: /etc/grid-security/certificates
+      - type: bind
+        source: ./certs
+        target: /tmp/cert
+      - type: bind
+        source: ./logs
+        target: /logs
+      - type: bind
+        source: ./scripts
+        target: /scripts
+      - ./configs/client-plugin-proxy.conf:/etc/xrootd/client.plugins.d/client-plugin-proxy.conf
+    entrypoint: /scripts/client.sh
+    networks:
+      network1:
+        ipv4_address: 10.5.0.7
+    tty: true
+
+networks:
+  network1:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 10.5.0.0/16
+         gateway: 10.5.0.1

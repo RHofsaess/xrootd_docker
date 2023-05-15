@@ -1,0 +1,79 @@
+### Ubuntu 22.04 docker setup for XCache
+Setup with development container for xrootd to test changes for the proxy.
+It is a minimal setup with logging to file, but without a redirector, no monitoring.
+
+**NOTE: The X509 proxies need to be renewed, if you want to use external data sources with auth!**
+
+
+----- general -----
+1) setup folders:
+  `$ mkdir cache`
+  `$ mdkir store`
+  `$ mdkir certs`
+  `$ mdkir build`
+  optionally:
+  `$ mkdir logs`
+2) copy X509 proxy, if necessary:
+  `$ cp <proxy> ./certs>`
+  and adapt `docker-compose.yml`
+
+----- remarks -----
+The setup currently uses the prebuild images from `ubuntu_testing` for the server and the client.
+
+For a new run, evtl clean the build dir before restarting.
+
+----- plain docker -----
+building image:
+  `$ docker build --rm -t ubuntu_compiled .`
+
+run (no compose):
+  `$ docker run -it -v /home/rhofsaess/working_dir/computing/xrootd_docker/xrootd:/xrootd -v ./configs:/xrdconfigs -v ./build:/build -v /cvmfs/grid.cern.ch/etc/grid-security/certificates:/etc/grid-security/certificates ubuntu_compile`
+  Eventually, more folders need to be mounted (certs etc)
+
+building xrootd:
+  run `scripts/build_xrd.sh`
+
+  `$ cd /build`
+  run cmake:
+  `$ cmake -DCMAKE_INSTALL_PREFIX=. ../xrootd
+
+  # support VOMS: -DENABLE_VOMS=True
+  # support HTTP TPC: -DENABLE_VOMS=True -DBUILD_MACAROONS=1
+  # support XrdClHTTP: -DXRDCLHTTP_SUBMODULE=1
+  # support Erasure Coding: -DENABLE_XRDEC=True
+  # support ASAN (CentOS 8 only): -DENABLE_ASAN=True
+
+  run make:
+  `$ make -j 8`
+  add user xrootd:
+  `$ echo "xrootd:x:9997:9997::/home/xrootd:/bin/bash" >> /etc/passwd`
+
+  To run the server:
+  `runuser -u xrootd -- /build/src/xrootd -c /xrdconfigs/CONFIG`
+
+
+----- docker compose -----
+setup:
+  `$ docker compose up -d`
+
+
+----- setup servers/ run testing -----
+1) server
+  started automatically with docker compose
+  Logging to /logs/server.log
+  **NOTE: The export directory (/store) can be owned by root**
+
+2) proxy:
+  started automatically with docker compose
+  Logging to /logs/proxy.log
+  **NOTE: The /cache directory must be owned by xrootd for writing!**
+
+3) client:
+  performs a data transfer automatically on startup
+or
+  connect as a client and use XRootD:
+  `$ docker exec -it client-minimal-1 bash`
+  **NOTE: For versions < 5.6 and > 5.3.1, it is necessary to use "XRD_CPUSEPGWRTRD=0" to avoid a bug in xrootd!**
+  e.g.: `$ XRD_CPUSEPGWRTRD=0 xrdcp -d 2 -f root://10.5.0.6:1094//root://10.5.0.5:1094//storage/<file> .`
+  Logging to /logs/client.log
+
