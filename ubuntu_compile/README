@@ -1,6 +1,12 @@
 ### Ubuntu 22.04 docker setup for XCache
 Setup with development container for xrootd to test changes for the proxy.
 It is a minimal setup with logging to file, but without a redirector, no monitoring.
+NOTE: the images from `ubuntu_testing` must be build and available for using this stack!
+
+The full stack runs:
+  - the server, serving the files in ./store [using the minimal-server image]
+  - the proxy, configured with the configs given in ./configs [using the compile image]
+  - the client, using the XrdClProxyPlugin
 
 **NOTE: The X509 proxies need to be renewed, if you want to use external data sources with auth!**
 
@@ -22,7 +28,40 @@ The setup currently uses the prebuild images from `ubuntu_testing` for the serve
 
 For a new run, evtl clean the build dir before restarting.
 
------ plain docker -----
+----- docker compose -----
+setup:
+  `$ docker compose up -d`
+
+
+----- setup servers/ run testing -----
+The provided setup automatically starts a server, compiles and runs the proxy, and start a client
+that pulls data from the server over the proxy.
+
+1) server:
+  - started automatically with docker compose
+  - on startup, the ./scripts/server.sh script runs
+  - logging to /logs/server.log
+  **NOTE: The export directory (/store) can be owned by root**
+
+2) proxy:
+  - started automatically with docker compose
+  - there are two ways to run this container:
+    1) selecting ./scripts/build_and_run.sh as an entrypoint in the docer-compose-yml builds xrootd 
+       from ../xrootd into ./build which is mounted as a bind mount
+    2) selecting ./scripts/proxy_compiled.sh starts the proxy without building
+  - logging to /logs/proxy.log
+  **NOTE: The /cache directory must be owned by xrootd for writing!**
+
+3) client:
+  - Auto mode: ./scripts/client.sh as entrypoint performs a data transfer automatically on startup
+  - Manual mode: connect as a client and use XRootD
+    `$ docker exec -it client-minimal-1 bash`
+    **NOTE: For versions < 5.6 and > 5.3.1, it is necessary to use "XRD_CPUSEPGWRTRD=0" to avoid a bug in xrootd!**
+    e.g.: `$ XRD_CPUSEPGWRTRD=0 xrdcp -d 2 -f root://10.5.0.6:1094//root://10.5.0.5:1094//storage/<file> .`
+  - logging to /logs/client.log
+
+
+----- plain docker [outdated] -----
 building image:
   `$ docker build --rm -t ubuntu_compiled .`
 
@@ -51,29 +90,4 @@ building xrootd:
   To run the server:
   `runuser -u xrootd -- /build/src/xrootd -c /xrdconfigs/CONFIG`
 
-
------ docker compose -----
-setup:
-  `$ docker compose up -d`
-
-
------ setup servers/ run testing -----
-1) server
-  started automatically with docker compose
-  Logging to /logs/server.log
-  **NOTE: The export directory (/store) can be owned by root**
-
-2) proxy:
-  started automatically with docker compose
-  Logging to /logs/proxy.log
-  **NOTE: The /cache directory must be owned by xrootd for writing!**
-
-3) client:
-  performs a data transfer automatically on startup
-or
-  connect as a client and use XRootD:
-  `$ docker exec -it client-minimal-1 bash`
-  **NOTE: For versions < 5.6 and > 5.3.1, it is necessary to use "XRD_CPUSEPGWRTRD=0" to avoid a bug in xrootd!**
-  e.g.: `$ XRD_CPUSEPGWRTRD=0 xrdcp -d 2 -f root://10.5.0.6:1094//root://10.5.0.5:1094//storage/<file> .`
-  Logging to /logs/client.log
 

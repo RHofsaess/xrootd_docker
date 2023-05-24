@@ -2,7 +2,7 @@
 
 # create log file
 touch /logs/server.log
-echo "START: $(date) ----------------------------" >> /logs/server.log
+echo "START: $(date) ----------------------------" > /logs/server.log
 
 #set permissions
 chown -R xrootd:xrootd logs

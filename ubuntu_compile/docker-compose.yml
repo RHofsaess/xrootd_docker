@@ -62,6 +62,7 @@ services:
       - type: bind
         source: ./logs
         target: /logs
+      - ./.gitconfig:/.gitconfig
     #entrypoint: /scripts/build_and_run.sh
     #entrypoint: /scripts/proxy.sh
     entrypoint: /scripts/proxy_compiled.sh
